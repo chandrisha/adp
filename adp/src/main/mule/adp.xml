@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="73cd303a-86e3-477a-86e0-d48fc19e449b" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<flow name="1" doc:id="240eb2d8-eb7c-44d9-a78e-d325b5c8ec60" >
+		<http:listener doc:name="Listener" doc:id="e19223eb-b8c4-4e25-8ab4-7e8692583831" config-ref="HTTP_Listener_config" path="/employee" allowedMethods="POST">
+			<http:response statusCode="201" reasonPhrase="Http Response Code">
+			</http:response>
+		</http:listener>
+		<ee:transform doc:name="Transform Message" doc:id="81f77c45-a8c5-4bc4-b9fa-0e2d7e6806ae" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+fun getresp (response: String) = 
+  "Jan Doe employee profile is created in HRMS System"
+---
+getresp(write(payload, "text/plain"))
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="ac8f4762-29c4-4db3-acae-47a150585c0e" message="#[payload]"/>
+	</flow>
+	<flow name="2and3" doc:id="e29bc30a-3f8e-4b5a-be45-8c0573bc09cd" >
+		<http:listener doc:name="Listener" doc:id="169e5e7a-91c9-4a40-911b-9a97de7e4ff1" config-ref="HTTP_Listener_config" path="/profile"/>
+		<ee:transform doc:name="Transform Message" doc:id="460713c5-814a-40d3-9474-c81d48d831e7" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+capturedresponse: lookup("1",payload)]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<ee:transform doc:name="Transform Message" doc:id="fdc5e385-6989-4ff0-8f01-5133d56b7237" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+import * from dw::core::Strings
+output application/json
+---
+{
+	"camelCase": camelize(payload.capturedresponse as String)
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="71182387-e156-4085-938f-1cfd3986dcb3" message="#[payload]"/>
+	</flow>
+	<flow name="4.1" doc:id="348b9353-0def-45fa-bb95-fe6c8f3cd04c" >
+		<http:listener doc:name="Listener" doc:id="505d2ea6-eefc-4c81-89a7-ac00fe50be4a" config-ref="HTTP_Listener_config" path="matchingID">
+			<ee:repeatable-file-store-stream bufferUnit="MB" />
+		</http:listener>
+		<ee:transform doc:name="Transform Message" doc:id="97c61817-3085-404e-81db-72c700d90b87" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+var firstInput = [
+  {"id":"A007","first_name":"Jan","last_name":"Doe"},
+  {"id":"A008","first_name":"Ron","last_name":"David"},
+  {"id":"A009","first_name":"Jane","last_name":"Kane"},
+  {"id":"A010","first_name":"Marsh","last_name":"Megan"},
+  {"id":"A011","first_name":"Kelly","last_name":"Mitch"},
+  {"id":"A012","first_name":"Chris","last_name":"Vaste"}
+]
+var secondInput =
+[
+ {"id":"A007","subjects":["Maths","English","Arts","Drawimgs"],"score":[80,75,89,100]},
+ {"id":"A008","subjects":["Maths","English","Arts","Drawimgs"],"score":[70,85,69,90]},
+ {"id":"A021","subjects":["Maths","English","Arts","Drawimgs"],"score":[90,87,77,95]}
+]
+output application/json
+---
+certificates: 
+firstInput map (firstInputValue) -> {
+    (secondInput filter($.id contains firstInputValue.id)  map (secondInputValue) -> {
+
+      id : firstInputValue.id as String,
+      firstName: firstInputValue.first_name as String,
+      LastName: firstInputValue.last_name as String,
+      marks: secondInputValue.score
+      })
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="bf7ad00c-b56a-4665-a621-543e6205dc67" />
+	</flow>
+	<flow name="4.2" doc:id="79e2aa41-0ada-4c81-bdf2-8bb1ecfa92e2" >
+		<http:listener doc:name="Listener" doc:id="954d1c52-0ce0-4a51-8e9f-52339b5310e2" config-ref="HTTP_Listener_config" path="Notinclude"/>
+		<ee:transform doc:name="Transform Message" doc:id="2a60706b-4476-4994-9732-adc604cd739d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+var firstInput = [
+  {"id":"A007","first_name":"Jan","last_name":"Doe"},
+  {"id":"A008","first_name":"Ron","last_name":"David"},
+  {"id":"A009","first_name":"Jane","last_name":"Kane"},
+  {"id":"A010","first_name":"Marsh","last_name":"Megan"},
+  {"id":"A011","first_name":"Kelly","last_name":"Mitch"},
+  {"id":"A012","first_name":"Chris","last_name":"Vaste"}
+]
+var secondInput =
+[
+ {"id":"A007","subjects":["Maths","English","Arts","Drawimgs"],"score":[80,75,89,100]},
+ {"id":"A008","subjects":["Maths","English","Arts","Drawimgs"],"score":[70,85,69,90]},
+ {"id":"A021","subjects":["Maths","English","Arts","Drawimgs"],"score":[90,87,77,95]}
+]
+output application/json
+---
+firstInput  map (firstInputValue) ->
+ { 
+      id : firstInputValue.id as String ,
+      (secondInput filter ($.*id contains firstInputValue.id) map (secondInputValue) -> {
+      	firstName: firstInputValue.first_name as String,
+      LastName: firstInputValue.last_name as String,
+      marks : secondInputValue.score
+    }) 
+} 
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="00300675-817c-4c15-bec4-b8e18ad9192f" />
+	</flow>
+	<flow name="5" doc:id="8fb31d8b-f6dc-4dc9-a0fa-b1159ffb43b6" >
+		<http:listener doc:name="Listener" doc:id="86cd17f1-6ffd-47d0-82c1-6722575f8a7a" config-ref="HTTP_Listener_config" path="jsonarray"/>
+		<ee:transform doc:name="Transform Message" doc:id="c242d311-5c5f-4be2-8e8d-550cf47fc484" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0 
+output application/json
+fun prepareList(list:Array, maxSize: Number) = if(sizeOf(list) >= maxSize )
+list
+else
+prepareList(list ++ [(sizeOf(list) + 1) as Number],maxSize)
+---
+prepareList([],10)]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="f2d16fef-ae9a-4b2c-ada8-c73b6a1a7045" />
+	</flow>
+</mule>
